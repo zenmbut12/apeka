@@ -1,0 +1,67 @@
+name: Flutter Build from ZIP (FINAL)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip zip
+
+      - name: Extract ZIP
+        run: |
+          unzip project.zip -d app
+          ls app
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.6'
+          channel: 'stable'
+          cache: true
+
+      - name: Flutter doctor
+        working-directory: app
+        run: flutter doctor -v
+
+      - name: Clean
+        working-directory: app
+        run: flutter clean
+
+      - name: Get dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Generate icons
+        working-directory: app
+        run: flutter pub run flutter_launcher_icons || true
+
+      - name: Build APK
+        working-directory: app
+        run: flutter build apk --release
+
+      - name: Build AAB
+        working-directory: app
+        run: flutter build appbundle --release
+
+      - name: Zip result
+        run: |
+          mkdir release
+          cp app/build/app/outputs/flutter-apk/app-release.apk release/
+          cp app/build/app/outputs/bundle/release/app-release.aab release/
+          cd release
+          zip app-release.zip *
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-release
+          path: release/app-release.zip
